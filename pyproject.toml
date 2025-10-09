@@ -1,0 +1,19 @@
+[tool.poetry]
+name = "record-sampling"
+version = "0.1.0"
+description = "Differential privacy record sampling experiments."
+authors = ["Record Sampling Maintainers <maintainers@example.com>"]
+readme = "Readme.md"
+
+[tool.poetry.dependencies]
+python = "^3.10"
+numpy = "^1.26.0"
+scipy = "^1.11.0"
+scikit-learn = "^1.3.0"
+cplex = "^22.1.0"
+
+[tool.poetry.group.dev.dependencies]
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
