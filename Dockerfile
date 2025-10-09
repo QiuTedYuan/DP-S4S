@@ -22,16 +22,7 @@ RUN poetry install --no-root --only main
 
 COPY . .
 
-ARG CPLEX_WHEEL=""
-RUN if [ -z "${CPLEX_WHEEL}" ]; then \
-        echo "CPLEX_WHEEL build argument is required. Set it to the path of the IBM CPLEX Python wheel inside the build context (see IBM docs)." >&2; \
-        exit 1; \
-    elif [ ! -f "${CPLEX_WHEEL}" ]; then \
-        echo "CPLEX wheel '${CPLEX_WHEEL}' not found in build context. Ensure you extracted IBM ILOG CPLEX Optimization Studio and set CPLEX_WHEEL accordingly." >&2; \
-        exit 1; \
-    else \
-        poetry run python -m pip install \"${CPLEX_WHEEL}\"; \
-    fi \
-    && rm -rf /root/.cache/pip
+RUN chmod +x scripts/docker_entrypoint.sh
 
+ENTRYPOINT ["/app/scripts/docker_entrypoint.sh"]
 CMD ["poetry", "run", "python", "src/main.py"]

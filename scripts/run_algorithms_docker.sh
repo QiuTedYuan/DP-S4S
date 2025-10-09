@@ -14,6 +14,28 @@ fi
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 
+HOST_CPLEX_STUDIO_DIR="${HOST_CPLEX_STUDIO_DIR:-}"
+CONTAINER_CPLEX_STUDIO_DIR="${CONTAINER_CPLEX_STUDIO_DIR:-/opt/ibm/ILOG/CPLEX_Studio2211}"
+declare -a DOCKER_SHARED_FLAGS=()
+
+if [[ -z "${HOST_CPLEX_STUDIO_DIR}" ]]; then
+  echo "HOST_CPLEX_STUDIO_DIR must point to the local IBM CPLEX Studio installation." >&2
+  exit 1
+fi
+
+if [[ ! -d "${HOST_CPLEX_STUDIO_DIR}" ]]; then
+  echo "HOST_CPLEX_STUDIO_DIR '${HOST_CPLEX_STUDIO_DIR}' does not exist." >&2
+  exit 1
+fi
+
+if [[ ! -f "${HOST_CPLEX_STUDIO_DIR}/python/setup.py" ]]; then
+  echo "CPLEX setup.py not found at ${HOST_CPLEX_STUDIO_DIR}/python/setup.py" >&2
+  exit 1
+fi
+
+DOCKER_SHARED_FLAGS+=(-v "${HOST_CPLEX_STUDIO_DIR}:${CONTAINER_CPLEX_STUDIO_DIR}:ro")
+DOCKER_SHARED_FLAGS+=(-e "CPLEX_STUDIO_DIR2211=${CONTAINER_CPLEX_STUDIO_DIR}")
+
 DATASETS=(deezer amazon1 amazon2)
 QUERIES=(l1 l2 triangle rectangle)
 SAMPLE_RATES=(4 8 16 32 64)
@@ -228,6 +250,7 @@ while [[ "${offset}" -lt "${task_count}" ]]; do
       --memory=16g \
       --memory-swap=16g \
       --memory-swappiness=0 \
+      "${DOCKER_SHARED_FLAGS[@]}" \
       -v "${PROJECT_ROOT}:/app" \
       -w /app \
       "${IMAGE_NAME}" \
