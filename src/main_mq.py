@@ -1,5 +1,4 @@
 import argparse
-import faulthandler
 import time
 
 import numpy as np
@@ -9,41 +8,68 @@ from NoiseGen import NoiseGenerator
 from PMSJA import QCQPSolver, pmsja, pmsja_renyi
 
 
+def avg(arr):
+    arr = sorted(arr)
+    res = arr[int(len(arr)*0.2):int(len(arr)*0.8)]
+    return sum(res) / len(res)
+
 def l2_norm(x):
     return np.sqrt(np.sum(np.power(x, 2)))
 
-parser = argparse.ArgumentParser(description='Sample-based R2T.')
-parser.add_argument('-i', '--input', required=True, type=str, help='Input file')
-parser.add_argument('-e', '--epsilon', default=4.0, type=float, help='Epsilon')
-parser.add_argument('-d', '--delta', default=0.00000001, type=float, help='Delta')
-parser.add_argument('-b', '--beta', default=0.1, type=float, help='Beta')
-parser.add_argument('-g', '--global_sensitivity', default=1000000, type=float, help='Global sensitivity')
-parser.add_argument('-w', '--max_weight', default=1, type=float, help='Max weight of each record')
-args = parser.parse_args()
+def run(algorithm: str, data: DatasetMultipleQuery, epsilon: float, delta: float, beta: float,
+        global_sensitivity: float, sample_rate: float, c_bound: int):
 
-faulthandler.enable()
+    errs = []
+    times = []
+    data_norm = l2_norm(data.query_results())
 
-dataset = DatasetMultipleQuery.from_prefix(args.input)
+    for seed in range(10):
+        print("iter", seed, "...")
+        noise_gen = NoiseGenerator(seed)
+        start = time.time()
 
-solver = QCQPSolver(dataset)
-# print("Data Size: ", len(dataset.edges))
-# print("Query Result: ", dataset.query_results())
-sample_rate = 0.05
+        res = []
+        if algorithm == 'pmsja':
+            tau, res = pmsja(data, epsilon, delta, beta, noise_gen)
+        elif algorithm == 'renyi':
+            tau, res = pmsja_renyi(data, args.epsilon, args.delta, args.beta, noise_gen, sample_rate)
+        else:
+            assert False, "invalid algo"
+
+        err = l2_norm(res - data.query_results()) / data_norm * 100
+        tm = time.time() - start
+
+        errs.append(err)
+        times.append(tm)
+        print(tm)
+        print(res[0:3])
+        print(err)
+
+    return avg(errs), avg(times)
 
 
-for seed in range(5):
-    noise_gen = NoiseGenerator(seed)
-    start = time.time()
-    tau, noisy_result = pmsja(dataset, args.epsilon, args.delta, args.beta, noise_gen)
-    print(noisy_result )
-    print("Time")
-    print(time.time()-start)
-    # print("Query Result")
-    # print(dataset.query_results())
-    # print("Noised Result")
-    # print(noisy_result)
-    print("pmsja", tau,  l2_norm(noisy_result - dataset.query_results()) / l2_norm(dataset.query_results()), time.time() - start, 's')
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser(description='DP-S4S.')
+    parser.add_argument('-i', '--input', required=True, type=str, help='Input file')
+    parser.add_argument('-e', '--epsilon', default=4.0, type=float, help='Epsilon')
+    parser.add_argument('-d', '--delta', default=0.0000001, type=float, help='Delta')
+    parser.add_argument('-b', '--beta', default=0.1, type=float, help='Beta')
+    parser.add_argument('-g', '--global_sensitivity', default=1000000, type=float, help='Global sensitivity')
+    parser.add_argument('-c', '--collaborators', default=1024, type=int, help='Collaborators bound')
+    parser.add_argument('-s', '--sample_rate_inverse', default=10, type=float, help='Sample rate inverse')
+    parser.add_argument('-a', '--algorithm', required=True, type=str,
+                        choices=['pmsja', 'renyi'], help='Algorithm')
 
-    start = time.time()
-    tau, noisy_result = pmsja_renyi(dataset, args.epsilon, args.delta, args.beta, noise_gen, sample_rate)
-    print("renyi", tau, l2_norm(noisy_result - dataset.query_results()) / l2_norm(dataset.query_results()), time.time() - start, 's')
+    args = parser.parse_args()
+
+
+    dataset = DatasetMultipleQuery.from_prefix(args.input)
+    print("Num Queries: ", dataset.num_queries())
+    print("Data Sizes: ", [len(x) for x in dataset.query_records][0:3])
+    print("Query Result: ", dataset.query_results()[0:3])
+    print("Query Norm: ", l2_norm(dataset.query_results()))
+
+    err, time = run(args.algorithm, dataset, args.epsilon, args.delta, args.beta, args.global_sensitivity,
+                    1./args.sample_rate_inverse, args.collaborators)
+    print("time", time)
+    print("err", err)

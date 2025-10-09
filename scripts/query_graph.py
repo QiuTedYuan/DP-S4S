@@ -4,7 +4,7 @@ import time
 
 import psycopg2
 
-parser = argparse.ArgumentParser(description='load graphs into PostgreSQL')
+parser = argparse.ArgumentParser(description='query graph')
 parser.add_argument('-d', '--database', required=True, type=str, help='Database in PostgreSQL.')
 parser.add_argument('-q', '--query', required=True, type=str, help='Query Type.', choices=['all','l2','l2','l3','triangle','rectangle'])
 args = parser.parse_args()

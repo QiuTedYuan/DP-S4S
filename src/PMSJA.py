@@ -1,6 +1,5 @@
 import logging
 import math
-import sys
 import R2T
 
 import cplex
@@ -90,7 +89,7 @@ class QCQPSolver:
         self.log_level = log_level
 
         self.env = mosek.Env()
-        self.env.putlicensepath("D:\Project\DpWorkload\PMSJA\Profile\mosek.lic")
+        self.env.putlicensepath("../mosek.lic")
 
     def get_idx_for_z(self, query, record):
         return self.num_yi + self.dataset.get_record_idx(query, record)

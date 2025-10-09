@@ -112,7 +112,7 @@ class DatasetMultipleQuery:
         return np.sqrt(max(contribs.values()))
 
     @classmethod
-    def sample_from(cls, ds, noise_gen: NoiseGenerator, sample_rate = 0.01):
+    def sample_from(cls, ds, noise_gen: NoiseGenerator, sample_rate):
         sampled_map = {}
         sampled_dataset = cls()
         for query in range(len(ds.query_records)):

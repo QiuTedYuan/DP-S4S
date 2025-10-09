@@ -52,7 +52,7 @@ def run(algorithm: str, data: Dataset, epsilon: float, delta: float, beta: float
     return avg(abs(np.array(results) - data.result)) / data.result * 100, avg(times)
 
 if __name__ == '__main__':
-    parser = argparse.ArgumentParser(description='Sample-based R2T.')
+    parser = argparse.ArgumentParser(description='DP-S4S.')
     parser.add_argument('-i', '--input', required=True, type=str, help='Input file.txt')
     parser.add_argument('-e', '--epsilon', default=1.0, type=float, help='Epsilon')
     parser.add_argument('-d', '--delta', default=0, type=float, help='Delta')
