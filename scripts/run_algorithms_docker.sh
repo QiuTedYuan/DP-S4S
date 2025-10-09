@@ -14,19 +14,6 @@ fi
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 
-HOST_CPLEX_STUDIO_DIR="${HOST_CPLEX_STUDIO_DIR:-}"
-CONTAINER_CPLEX_STUDIO_DIR="${CONTAINER_CPLEX_STUDIO_DIR:-/opt/cplex}"
-declare -a DOCKER_SHARED_FLAGS=()
-
-if [[ -n "${HOST_CPLEX_STUDIO_DIR}" ]]; then
-  if [[ ! -d "${HOST_CPLEX_STUDIO_DIR}" ]]; then
-    echo "HOST_CPLEX_STUDIO_DIR '${HOST_CPLEX_STUDIO_DIR}' does not exist." >&2
-    exit 1
-  fi
-  DOCKER_SHARED_FLAGS+=(-v "${HOST_CPLEX_STUDIO_DIR}:${CONTAINER_CPLEX_STUDIO_DIR}:ro")
-  DOCKER_SHARED_FLAGS+=(-e "CPLEX_STUDIO_DIR2212=${CONTAINER_CPLEX_STUDIO_DIR}")
-fi
-
 DATASETS=(deezer amazon1 amazon2)
 QUERIES=(l1 l2 triangle rectangle)
 SAMPLE_RATES=(4 8 16 32 64)
@@ -68,21 +55,9 @@ EXTRA_ARGS=("$@")
 
 IMAGE_NAME="${IMAGE_NAME:-record-sampling}"
 
-if [[ "${FORCE_REBUILD:-0}" -ne 0 ]]; then
-  REBUILD_IMAGE=1
-else
-  if docker image inspect "${IMAGE_NAME}" >/dev/null 2>&1; then
-    REBUILD_IMAGE=0
-  else
-    REBUILD_IMAGE=1
-  fi
-fi
-
-if [[ "${REBUILD_IMAGE}" -ne 0 ]]; then
-  echo "Building docker image '${IMAGE_NAME}'..."
+if ! docker image inspect "${IMAGE_NAME}" >/dev/null 2>&1; then
+  echo "Docker image '${IMAGE_NAME}' not found. Building..."
   docker build -t "${IMAGE_NAME}" "${PROJECT_ROOT}"
-else
-  echo "Docker image '${IMAGE_NAME}' already exists; skipping rebuild (set FORCE_REBUILD=1 to rebuild)."
 fi
 
 if command -v nproc >/dev/null 2>&1; then
@@ -255,7 +230,6 @@ while [[ "${offset}" -lt "${task_count}" ]]; do
       --memory-swappiness=0 \
       -v "${PROJECT_ROOT}:/app" \
       -w /app \
-      "${DOCKER_SHARED_FLAGS[@]}" \
       "${IMAGE_NAME}" \
       "${cmd[@]}" &
 
