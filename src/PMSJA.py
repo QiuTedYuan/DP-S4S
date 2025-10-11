@@ -11,6 +11,7 @@ from DatasetMultipleQuery import DatasetMultipleQuery
 from NoiseGen import NoiseGenerator, PrivacyBudgetAllocator
 from Smooth import find_alpha_rho, AdditiveSmoothSensitivity
 
+base = 2
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.DEBUG)
 
@@ -23,7 +24,7 @@ class Optimizer(cplex.callbacks.SimplexCallback):
 
 # records solutions stats for a range of tau values
 class LpSolver:
-    def __init__(self, dataset: Dataset, base: float, taus):
+    def __init__(self, dataset: Dataset, taus):
         self.dataset = dataset
 
         self.taus = taus
@@ -190,17 +191,19 @@ class QCQPSolver:
 
 
 def pmsja(dataset: DatasetMultipleQuery, epsilon: float, delta: float, beta: float, noise_gen: NoiseGenerator):
-    base = 2
     solver = QCQPSolver(dataset)
-    thres = -20 / epsilon * math.log(1./beta) + dataset.num_users()
-    thres_tilde = thres + noise_gen.generate_laplace(20, epsilon)
+    eps_1 = epsilon / 10
+    eps_2 = epsilon * 9 / 10
+    thres = -2 / eps_1 * math.log(1. / beta) + dataset.num_users()
+    thres_tilde = thres + noise_gen.generate_laplace(2, eps_1)
+
     E = {}
     I_sol = {}
     noises = {}
     tau = base
     DS = dataset.l2_downward_sensitivity()
     while tau < DS:
-        noises[tau] = noise_gen.generate_laplace(40, epsilon)
+        noises[tau] = noise_gen.generate_laplace(4, eps_1)
         tau *= base
     tau /= base
     pre_E = dataset.num_users()
@@ -216,13 +219,11 @@ def pmsja(dataset: DatasetMultipleQuery, epsilon: float, delta: float, beta: flo
         if tau >= DS:
             E[tau] = dataset.num_users()
             I_sol[tau] = np.ones(dataset.num_users())
-            noises[tau] = noise_gen.generate_laplace(40, epsilon)
+            noises[tau] = noise_gen.generate_laplace(4, epsilon / 10)
         if E[tau] + noises[tau] >= thres_tilde:
             E_star = E[tau]
             break
         tau *= base
-
-    # print("tau used: ", tau )
 
     if tau >= DS:
         truncated_query = dataset.query_results()
@@ -232,15 +233,13 @@ def pmsja(dataset: DatasetMultipleQuery, epsilon: float, delta: float, beta: flo
             for record in range(dataset.num_records_of_query(query)):
                 truncated_query[query] += I_sol[tau][solver.get_idx_for_z(query, record)] * dataset.query_values[query][record]
 
-    # print("Truncated: ", truncated_query)
-
-    temp = delta / 2 / math.exp(0.55*epsilon)
+    temp = delta / 2 / math.exp(0.55*eps_2)
     T_hat = 2*(dataset.num_users()-E_star) \
-            + noise_gen.generate_laplace(2, 0.45*epsilon) \
-            + 2/(0.45*epsilon)*math.log(math.exp(epsilon*0.55)/delta)
-    Gauss_noise = T_hat *tau*math.sqrt(2*math.log(1/temp)) * (1+0.45*epsilon/(4*math.log(1/temp))) / (0.45*epsilon) * np.random.normal(0, 1, dataset.num_queries())
+            + noise_gen.generate_laplace(2, 0.45*eps_2) \
+            + 2/(0.45*eps_2)*math.log(math.exp(epsilon*0.55)/delta)
+    Gauss_noise = T_hat*tau*math.sqrt(2*math.log(1/temp)) * (1+0.45*eps_2/(4*math.log(1/temp))) / (0.45*eps_2) * np.random.normal(0, 1, dataset.num_queries())
 
-    return tau, truncated_query + Gauss_noise
+    return truncated_query + Gauss_noise
 
 
 
@@ -253,60 +252,68 @@ def r2t_multiple_query(dataset: DatasetMultipleQuery, gs: float, epsilon: float,
         res[query] = R2T.dp_s4s(ds_q, gs, eps, beta / dataset.num_queries(), noise_gen, max_weight=1, sample_rate=0.5)
     return res
 
-def pmsja_renyi(original_dataset: DatasetMultipleQuery, epsilon: float, delta: float, beta: float, noise_gen: NoiseGenerator, sample_rate=1.):
-    alpha, rho = find_alpha_rho(epsilon, delta, original_dataset.num_queries())
+def dp_s4s_v(original_dataset: DatasetMultipleQuery, epsilon: float, delta: float, beta: float, noise_gen: NoiseGenerator, sample_rate):
+    eps_1 = epsilon / 10
+    eps_2 = epsilon * 9 / 10
+    alpha, rho = find_alpha_rho(eps_2, delta, original_dataset.num_queries())
 
     if sample_rate < 1.:
         dataset = DatasetMultipleQuery.sample_from(original_dataset, noise_gen, sample_rate)
     else:
         dataset = original_dataset
-    base = 2
-    tau0 = 1
-    solver = QCQPSolver(dataset)
-    thres = -20 / epsilon * math.log(1./beta) + dataset.num_users()
-    thres_tilde = thres + noise_gen.generate_laplace(20, epsilon)
-    E = {}
-    I_sol = {}
-    u = {}
-    tau = tau0
-    DS = dataset.l2_downward_sensitivity()
-    while tau < DS:
-        u[tau] = noise_gen.generate_laplace(40, epsilon)
-        tau *= base
-    tau /= base
-    pre_E = dataset.num_users()
-    while tau >= tau0:
-        if pre_E + u[tau] < thres_tilde:
-            E[tau] = thres_tilde - u[tau] - 1
-        else:
-            E[tau], I_sol[tau] = solver.solve(tau)
-            pre_E = E[tau]
-        tau /= base
-    tau = tau0
-    while True:
-        if tau >= DS:
-            E[tau] = dataset.num_users()
-            I_sol[tau] = np.ones(dataset.num_users())
-            u[tau] = noise_gen.generate_laplace(40, epsilon)
-        if E[tau] + u[tau] >= thres_tilde:
-            E_star = E[tau]
-            break
-        tau *= base
 
-    if tau >= DS:
+    solver = QCQPSolver(dataset)
+    thres = 2 / eps_1 * math.log(1./beta)
+    thres_tilde = thres + noise_gen.generate_laplace(2, eps_1)
+
+    DS = dataset.l2_downward_sensitivity()
+
+    num_nontrivial_taus = int(math.log(DS, base))
+    #for tau >= DS, the optimal solution is trivial
+    taus = np.power(base, list(range(num_nontrivial_taus)))
+    Es = np.zeros(len(taus))
+    I_sols = [[] for _ in taus]
+    noises = []
+    for _ in taus:
+        noises.append(noise_gen.generate_laplace(4, eps_1))
+    E_lower_bound = 0
+    for idx in reversed(range(len(taus))):
+        if E_lower_bound + noises[idx] > thres_tilde:
+            # it is impossible to select this tau
+            Es[idx] = np.inf
+        else:
+            sum_y, I_sols[idx] = solver.solve(taus[idx])
+            Es[idx] = dataset.num_users() - sum_y
+            E_lower_bound = Es[idx]
+
+    idx = 0
+    while True:
+        if idx < len(taus):
+            E = Es[idx]
+            noise = noises[idx]
+        else:
+            E = 0
+            noise = noise_gen.generate_laplace(4, eps_1)
+        if E + noise <= thres_tilde:
+            tau = np.power(base, idx)
+            break
+        idx += 1
+
+    if idx >= len(taus):
         truncated_query = dataset.query_results()
     else:
         truncated_query = np.zeros(dataset.num_queries())
         for query in range(dataset.num_queries()):
             for record in range(dataset.num_records_of_query(query)):
-                truncated_query[query] += I_sol[tau][solver.get_idx_for_z(query, record)] * dataset.query_values[query][record]
+                truncated_query[query] += I_sols[idx][solver.get_idx_for_z(query, record)] * dataset.query_values[query][record]
 
-    logging.debug("Truncated: ", truncated_query)
+    logging.debug("tau", tau, "Truncated: ", truncated_query)
 
     ss = AdditiveSmoothSensitivity(2 * tau, alpha, rho, dataset.num_queries())
 
-    noise = ss.sample_noise(dataset.num_users()-E_star)
-    return tau, (truncated_query + noise) / sample_rate
+    noise = ss.sample_noise(E)
+
+    return (truncated_query + noise) / sample_rate
 
 
 def user_sample_pmsja(dataset: DatasetMultipleQuery, epsilon: float, delta: float, beta: float, noise_gen: NoiseGenerator):
@@ -330,7 +337,7 @@ def user_sample_pmsja(dataset: DatasetMultipleQuery, epsilon: float, delta: floa
                     sampled_records.append(dataset.query_records[query][idx])
                     sampled_values.append(dataset.query_values[query][idx])
             sampled_dataset.add_query_records(sampled_records, sampled_values)
-        tau, res = pmsja_renyi(sampled_dataset, amplified_eps_per_iteration, delta / 2 / num_iterations, beta / num_iterations, noise_gen, 1.)
+        tau, res = dp_s4s_v(sampled_dataset, amplified_eps_per_iteration, delta / 2 / num_iterations, beta / num_iterations, noise_gen, 1.)
         total_res = np.add(total_res, res)
 
     return total_res / num_iterations * node_count

@@ -5,7 +5,7 @@ import numpy as np
 
 from DatasetMultipleQuery import DatasetMultipleQuery
 from NoiseGen import NoiseGenerator
-from PMSJA import QCQPSolver, pmsja, pmsja_renyi
+from PMSJA import pmsja, dp_s4s_v
 
 
 def avg(arr):
@@ -30,20 +30,20 @@ def run(algorithm: str, data: DatasetMultipleQuery, epsilon: float, delta: float
 
         res = []
         if algorithm == 'pmsja':
-            tau, res = pmsja(data, epsilon, delta, beta, noise_gen)
-        elif algorithm == 'renyi':
-            tau, res = pmsja_renyi(data, args.epsilon, args.delta, args.beta, noise_gen, sample_rate)
+            res = pmsja(data, epsilon, delta, beta, noise_gen)
+        elif algorithm == 'dp_s4s':
+            res = dp_s4s_v(data, args.epsilon, args.delta, args.beta, noise_gen, sample_rate)
         else:
             assert False, "invalid algo"
 
-        err = l2_norm(res - data.query_results()) / data_norm * 100
+        error = l2_norm(res - data.query_results()) / data_norm * 100
         tm = time.time() - start
 
-        errs.append(err)
+        errs.append(error)
         times.append(tm)
         print(tm)
         print(res[0:3])
-        print(err)
+        print(error)
 
     return avg(errs), avg(times)
 
@@ -58,10 +58,9 @@ if __name__ == '__main__':
     parser.add_argument('-c', '--collaborators', default=1024, type=int, help='Collaborators bound')
     parser.add_argument('-s', '--sample_rate_inverse', default=10, type=float, help='Sample rate inverse')
     parser.add_argument('-a', '--algorithm', required=True, type=str,
-                        choices=['pmsja', 'renyi'], help='Algorithm')
+                        choices=['pmsja', 'dp_s4s'], help='Algorithm')
 
     args = parser.parse_args()
-
 
     dataset = DatasetMultipleQuery.from_prefix(args.input)
     print("Num Queries: ", dataset.num_queries())

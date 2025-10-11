@@ -113,16 +113,12 @@ class DatasetMultipleQuery:
 
     @classmethod
     def sample_from(cls, ds, noise_gen: NoiseGenerator, sample_rate):
-        sampled_map = {}
         sampled_dataset = cls()
         for query in range(len(ds.query_records)):
             sampled_records = []
             sampled_values = []
             for idx in range(len(ds.query_records[query])):
-                edge = tuple(ds.query_records[query][idx])
-                if edge not in sampled_map:
-                    sampled_map[edge] = noise_gen.uniform(0, 1) < sample_rate
-                if sampled_map[edge]:
+                if noise_gen.uniform(0, 1) < sample_rate:
                     sampled_records.append(ds.query_records[query][idx])
                     sampled_values.append(ds.query_values[query][idx])
             sampled_dataset.add_query_records(sampled_records, sampled_values)
