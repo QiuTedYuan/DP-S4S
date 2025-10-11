@@ -14,7 +14,7 @@ install_cplex() {
   fi
 
   echo "Installing CPLEX from ${setup_py}..."
-  poetry run python "${setup_py}" install --user
+  poetry run python "${setup_py}" install
 }
 
 if [[ -n "${CPLEX_STUDIO_DIR2211:-}" ]]; then

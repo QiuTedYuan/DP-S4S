@@ -108,16 +108,18 @@ else
   fi
 fi
 
+CONTAINER_CPUS=4
 CONTAINER_MEMORY_BYTES=$((16 * 1024 * 1024 * 1024))
 if [[ "${AVAILABLE_MEMORY_BYTES}" -lt "${CONTAINER_MEMORY_BYTES}" ]]; then
   echo "Only $((AVAILABLE_MEMORY_BYTES / (1024 * 1024))) MiB memory available; at least 16 GiB is required to launch one container." >&2
   exit 1
 fi
 
+MAX_BY_CPU=$(( AVAILABLE_CPUS / CONTAINER_CPUS ))
 MAX_BY_MEMORY=$(( AVAILABLE_MEMORY_BYTES / CONTAINER_MEMORY_BYTES ))
 MAX_CONCURRENT="${MAX_BY_MEMORY}"
-if [[ "${MAX_CONCURRENT}" -gt "${AVAILABLE_CPUS}" ]]; then
-  MAX_CONCURRENT="${AVAILABLE_CPUS}"
+if [[ "${MAX_CONCURRENT}" -gt "${MAX_BY_CPU}" ]]; then
+  MAX_CONCURRENT="${MAX_BY_CPU}"
 fi
 
 if [[ "${MAX_CONCURRENT}" -lt 1 ]]; then
@@ -219,7 +221,8 @@ while [[ "${offset}" -lt "${task_count}" ]]; do
     base_label="${TASK_BASE_LABELS[idx]}"
     sample_rate="${TASK_SAMPLE_RATES[idx]}"
     algo="${TASK_ALGOS[idx]}"
-    cpu="${CPU_INDICES[i]}"
+    cpu_idx="$(( i * CONTAINER_CPUS))"
+    cpu="${CPU_INDICES[cpu_idx]}"
 
     if [[ -n "${sample_rate}" ]]; then
       label="${base_label}-s${sample_rate}"
@@ -232,9 +235,9 @@ while [[ "${offset}" -lt "${task_count}" ]]; do
     CONTAINER_NAMES+=("${container_name}")
 
     if [[ -n "${sample_rate}" ]]; then
-      echo "Starting '${algo}' with input ${base_label} (sample_rate=${sample_rate}) on CPU ${cpu}..."
+      echo "Starting '${algo}' with input ${base_label} (sample_rate=${sample_rate}) on CPU ${cpu}-${cpu+CONTAINER_CPUS}..."
     else
-      echo "Starting '${algo}' with input ${base_label} (default sample rate) on CPU ${cpu}..."
+      echo "Starting '${algo}' with input ${base_label} (default sample rate) on CPU ${cpu}-${cpu+CONTAINER_CPUS}..."
     fi
 
     cmd=(poetry run python src/main.py -i "${container_path}" -a "${algo}")
@@ -245,8 +248,8 @@ while [[ "${offset}" -lt "${task_count}" ]]; do
 
     docker run --rm \
       --name "${container_name}" \
-      --cpus=1 \
-      --cpuset-cpus="${cpu}" \
+      --cpus=${CONTAINER_CPUS} \
+      --cpuset-cpus="${cpu}-${cpu+CONTAINER_CPUS}" \
       --memory=16g \
       --memory-swap=16g \
       --memory-swappiness=0 \
