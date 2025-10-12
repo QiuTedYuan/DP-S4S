@@ -14,29 +14,9 @@ fi
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 
-HOST_CPLEX_STUDIO_DIR="${HOST_CPLEX_STUDIO_DIR:-}"
-CONTAINER_CPLEX_STUDIO_DIR="${CONTAINER_CPLEX_STUDIO_DIR:-/opt/ibm/ILOG/CPLEX_Studio2211}"
-declare -a DOCKER_SHARED_FLAGS=()
 
-if [[ -z "${HOST_CPLEX_STUDIO_DIR}" ]]; then
-  echo "HOST_CPLEX_STUDIO_DIR must point to the local IBM CPLEX Studio installation." >&2
-  exit 1
-fi
-
-if [[ ! -d "${HOST_CPLEX_STUDIO_DIR}" ]]; then
-  echo "HOST_CPLEX_STUDIO_DIR '${HOST_CPLEX_STUDIO_DIR}' does not exist." >&2
-  exit 1
-fi
-
-if [[ ! -f "${HOST_CPLEX_STUDIO_DIR}/python/setup.py" ]]; then
-  echo "CPLEX setup.py not found at ${HOST_CPLEX_STUDIO_DIR}/python/setup.py" >&2
-  exit 1
-fi
-
-DOCKER_SHARED_FLAGS+=(-v "${HOST_CPLEX_STUDIO_DIR}:${CONTAINER_CPLEX_STUDIO_DIR}")
-DOCKER_SHARED_FLAGS+=(-e "CPLEX_STUDIO_DIR2211=${CONTAINER_CPLEX_STUDIO_DIR}")
-
-DATASETS=(deezer amazon1 amazon2)
+#(deezer amazon1 amazon2)
+DATASETS=(amazon2 deezer)
 QUERIES=(l1 l2 triangle rectangle)
 SAMPLE_RATES=(4 8 16 32 64)
 SAMPLE_RATE_ALGOS=(dp_s4s se_blackbox)
@@ -75,7 +55,7 @@ fi
 
 EXTRA_ARGS=("$@")
 
-IMAGE_NAME="${IMAGE_NAME:-record-sampling}"
+IMAGE_NAME="${IMAGE_NAME:-s4s}"
 
 if ! docker image inspect "${IMAGE_NAME}" >/dev/null 2>&1; then
   echo "Docker image '${IMAGE_NAME}' not found. Building..."
@@ -108,14 +88,15 @@ else
   fi
 fi
 
-CONTAINER_CPUS=4
-CONTAINER_MEMORY_BYTES=$((16 * 1024 * 1024 * 1024))
+CONTAINER_CPU=1
+CONTAINER_MEMORY_GB=32
+CONTAINER_MEMORY_BYTES=$((CONTAINER_MEMORY_GB * 1024 * 1024 * 1024))
 if [[ "${AVAILABLE_MEMORY_BYTES}" -lt "${CONTAINER_MEMORY_BYTES}" ]]; then
-  echo "Only $((AVAILABLE_MEMORY_BYTES / (1024 * 1024))) MiB memory available; at least 16 GiB is required to launch one container." >&2
+  echo "Only $((AVAILABLE_MEMORY_BYTES / (1024 * 1024))) MiB memory available; at least ${CONTAINER_MEMORY_GB} GiB is required to launch one container." >&2
   exit 1
 fi
 
-MAX_BY_CPU=$(( AVAILABLE_CPUS / CONTAINER_CPUS ))
+MAX_BY_CPU=$(( AVAILABLE_CPUS / CONTAINER_CPU ))
 MAX_BY_MEMORY=$(( AVAILABLE_MEMORY_BYTES / CONTAINER_MEMORY_BYTES ))
 MAX_CONCURRENT="${MAX_BY_MEMORY}"
 if [[ "${MAX_CONCURRENT}" -gt "${MAX_BY_CPU}" ]]; then
@@ -184,11 +165,11 @@ echo "Planning to launch ${TOTAL_CONTAINERS} containers (${NO_SAMPLE_RATE_TASKS}
 
 AVAILABLE_MEMORY_GB=$(awk -v b="${AVAILABLE_MEMORY_BYTES}" 'BEGIN {printf "%.2f", b/1024/1024/1024}')
 echo "Detected ${AVAILABLE_CPUS} CPU cores and approximately ${AVAILABLE_MEMORY_GB} GiB of available memory."
-echo "Running up to ${MAX_CONCURRENT} containers in parallel (16 GiB per container)."
+echo "Running up to ${MAX_CONCURRENT} containers in parallel (${CONTAINER_MEMORY_GB} GiB per container)."
 
 CPU_INDICES=($(seq 0 $(( AVAILABLE_CPUS - 1 ))))
 
-CONTAINER_PREFIX="record-sampling"
+CONTAINER_PREFIX="s4s"
 declare -a CONTAINER_NAMES=()
 cleanup() {
   for name in "${CONTAINER_NAMES[@]}"; do
@@ -221,8 +202,7 @@ while [[ "${offset}" -lt "${task_count}" ]]; do
     base_label="${TASK_BASE_LABELS[idx]}"
     sample_rate="${TASK_SAMPLE_RATES[idx]}"
     algo="${TASK_ALGOS[idx]}"
-    cpu_idx="$(( i * CONTAINER_CPUS))"
-    cpu="${CPU_INDICES[cpu_idx]}"
+    cpu="${CPU_INDICES[i]}"
 
     if [[ -n "${sample_rate}" ]]; then
       label="${base_label}-s${sample_rate}"
@@ -235,9 +215,9 @@ while [[ "${offset}" -lt "${task_count}" ]]; do
     CONTAINER_NAMES+=("${container_name}")
 
     if [[ -n "${sample_rate}" ]]; then
-      echo "Starting '${algo}' with input ${base_label} (sample_rate=${sample_rate}) on CPU ${cpu}-${cpu+CONTAINER_CPUS}..."
+      echo "Starting '${algo}' with input ${base_label} (sample_rate=${sample_rate}) on CPU ${cpu}..."
     else
-      echo "Starting '${algo}' with input ${base_label} (default sample rate) on CPU ${cpu}-${cpu+CONTAINER_CPUS}..."
+      echo "Starting '${algo}' with input ${base_label} (default sample rate) on CPU ${cpu}..."
     fi
 
     cmd=(poetry run python src/main.py -i "${container_path}" -a "${algo}")
@@ -246,18 +226,18 @@ while [[ "${offset}" -lt "${task_count}" ]]; do
     fi
     cmd+=("${EXTRA_ARGS[@]}")
 
-    docker run --rm \
-      --name "${container_name}" \
-      --cpus=${CONTAINER_CPUS} \
-      --cpuset-cpus="${cpu}-${cpu+CONTAINER_CPUS}" \
-      --memory=16g \
-      --memory-swap=16g \
-      --memory-swappiness=0 \
-      "${DOCKER_SHARED_FLAGS[@]}" \
-      -v "${PROJECT_ROOT}:/app" \
-      -w /app \
-      "${IMAGE_NAME}" \
-      "${cmd[@]}" &
+    docker_cmd=(docker run --rm \
+                --name "${container_name}" \
+                --cpus="${CONTAINER_CPU}" \
+                --cpuset-cpus="${cpu}" \
+                --memory="${CONTAINER_MEMORY_GB}"g \
+                --memory-swap="${CONTAINER_MEMORY_GB}"g \
+                --memory-swappiness=0 \
+                -w /app \
+                "${IMAGE_NAME}" \
+                bash -c "${cmd[@]}")
+    echo "${docker_cmd[@]}"
+    "${docker_cmd[@]}" > "logs/${container_name}.txt" 2>&1 &
 
     pids+=("$!")
   done

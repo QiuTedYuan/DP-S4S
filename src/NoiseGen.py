@@ -1,5 +1,5 @@
 import math
-from functools import lru_cache, cache
+from functools import cache
 
 import numpy as np
 import sklearn
@@ -76,6 +76,21 @@ class PrivacyBudgetAllocator:
         def func(eps):
             return eps * math.sqrt(2 * k * math.log(1/delta)) + k * eps * (math.exp(eps) - 1) / (math.exp(eps) + 1)
         return binary_search(0, epsilon, func, epsilon)
+
+    @staticmethod
+    def allocate_user_amplification(k: int, epsilon: float, delta: float, node_count: int, c_bound: int):
+        if node_count - k * c_bound < k:
+            prob_no_collaborator = 0
+        else:
+            prob_no_collaborator = binom(node_count - k * c_bound, k) / binom(node_count, k)
+
+        if delta == 0:
+            amplified_eps = math.log(1 + (math.exp(epsilon) - 1) / (1 - prob_no_collaborator))
+            amplified_delta = 0
+        else:
+            amplified_eps = 0.5 * math.log(1 + (math.exp(epsilon) - 1) / (1 - prob_no_collaborator))
+            amplified_delta = delta / (math.exp(amplified_eps) + 1) / (1 - prob_no_collaborator)
+        return amplified_eps, amplified_delta
 
     @cache
     def allocate(self, epsilon: float):

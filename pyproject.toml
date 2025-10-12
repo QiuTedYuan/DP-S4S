@@ -1,8 +1,8 @@
 [tool.poetry]
-name = "record-sampling"
+name = "dp-s4s"
 version = "0.1.0"
-description = "Differential privacy record sampling experiments."
-authors = ["Record Sampling Maintainers <maintainers@example.com>"]
+description = "Experiments for DP-S4S."
+authors = ["Annonymous"]
 readme = "Readme.md"
 
 [tool.poetry.dependencies]

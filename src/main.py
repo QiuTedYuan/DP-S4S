@@ -14,11 +14,11 @@ def avg(arr):
     return sum(res) / len(res)
 
 def run(algorithm: str, data: Dataset, epsilon: float, delta: float, beta: float,
-        global_sensitivity: float, sample_rate: float, max_weight: float, c_bound: int):
+        global_sensitivity: float, sample_rate: float, max_weight: float, c_bound: int, repeats: int):
     results = []
     times = []
 
-    for seed in range(100):
+    for seed in range(repeats):
         print("iter", seed, "...")
         noise_gen = NoiseGenerator(seed)
         start = time.time()
@@ -62,6 +62,7 @@ if __name__ == '__main__':
     parser.add_argument('-w', '--max_weight', default=1., type=float, help='Max weight of each record')
     parser.add_argument('-s', '--sample_rate_inverse', default=10, type=float, help='Sample rate inverse')
     parser.add_argument('-a', '--algorithm', required=True, type=str, choices=['r2t', 'dp_s4s', 'se_blackbox', 'se_whitebox'], help='Algorithm')
+    parser.add_argument('-r', '--repeats', default=10, type=int, help='Number of repeats')
 
     args = parser.parse_args()
 
@@ -80,6 +81,6 @@ if __name__ == '__main__':
         gs = args.global_sensitivity
 
 
-    err, time = run(args.algorithm, dataset, args.epsilon, args.delta, args.beta, gs, 1./args.sample_rate_inverse, args.max_weight, args.collaborators)
+    err, time = run(args.algorithm, dataset, args.epsilon, args.delta, args.beta, gs, 1./args.sample_rate_inverse, args.max_weight, args.collaborators, args.repeats)
     print("time", time)
     print("err", err)

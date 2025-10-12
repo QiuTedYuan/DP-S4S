@@ -1,5 +1,8 @@
 import logging
 import math
+
+from scipy.special.cython_special import binom
+
 import R2T
 
 import cplex
@@ -242,8 +245,7 @@ def pmsja(dataset: DatasetMultipleQuery, epsilon: float, delta: float, beta: flo
     return truncated_query + Gauss_noise
 
 
-
-def r2t_multiple_query(dataset: DatasetMultipleQuery, gs: float, epsilon: float, delta: float, beta: float, noise_gen: NoiseGenerator):
+def r2t_mq(dataset: DatasetMultipleQuery, gs: float, epsilon: float, delta: float, beta: float, noise_gen: NoiseGenerator):
     res = np.zeros(dataset.num_queries())
     eps = PrivacyBudgetAllocator.allocate_advanced_composition(dataset.num_queries(), epsilon, delta)
     for query in range(dataset.num_queries()):
@@ -315,29 +317,12 @@ def dp_s4s_v(original_dataset: DatasetMultipleQuery, epsilon: float, delta: floa
 
     return (truncated_query + noise) / sample_rate
 
-
-def user_sample_pmsja(dataset: DatasetMultipleQuery, epsilon: float, delta: float, beta: float, noise_gen: NoiseGenerator):
-    degree_upper_bound = 1024
+def se_pmsja(dataset: DatasetMultipleQuery, epsilon: float, delta: float, beta: float, noise_gen: NoiseGenerator, k, c_bound):
     node_count = dataset.user_cnt
-    num_iterations = 1000
 
-    eps_each_iteration = PrivacyBudgetAllocator.allocate_advanced_composition(num_iterations, epsilon, delta / 2)
-    amplified_eps_per_iteration = math.log(1 + node_count / degree_upper_bound * (math.exp(eps_each_iteration) - 1))
-    total_res = np.zeros(dataset.num_queries())
+    amplified_eps, amplified_delta = PrivacyBudgetAllocator.allocate_user_amplification(k, epsilon, delta, node_count, c_bound)
 
-    for _ in range(num_iterations):
-        sampled_user = noise_gen.randint(node_count)
-        sampled_dataset = DatasetMultipleQuery()
-        for query in range(len(dataset.query_records)):
-            sampled_records = []
-            sampled_values = []
-            for idx in range(len(dataset.query_records[query])):
-                edge = tuple(dataset.query_records[query][idx])
-                if edge[0] == sampled_user:
-                    sampled_records.append(dataset.query_records[query][idx])
-                    sampled_values.append(dataset.query_values[query][idx])
-            sampled_dataset.add_query_records(sampled_records, sampled_values)
-        tau, res = dp_s4s_v(sampled_dataset, amplified_eps_per_iteration, delta / 2 / num_iterations, beta / num_iterations, noise_gen, 1.)
-        total_res = np.add(total_res, res)
+    sampled_dataset = DatasetMultipleQuery.sample_from(dataset, noise_gen, amplified_eps)
+    res = pmsja(sampled_dataset, amplified_eps, amplified_delta, beta / k, noise_gen)
 
-    return total_res / num_iterations * node_count
+    return res / k * node_count

@@ -5,7 +5,7 @@ import numpy as np
 
 from DatasetMultipleQuery import DatasetMultipleQuery
 from NoiseGen import NoiseGenerator
-from PMSJA import pmsja, dp_s4s_v
+from PMSJA import pmsja, dp_s4s_v, se_pmsja
 
 
 def avg(arr):
@@ -17,13 +17,13 @@ def l2_norm(x):
     return np.sqrt(np.sum(np.power(x, 2)))
 
 def run(algorithm: str, data: DatasetMultipleQuery, epsilon: float, delta: float, beta: float,
-        global_sensitivity: float, sample_rate: float, c_bound: int):
+        global_sensitivity: float, sample_rate: float, c_bound: int, repeats: int):
 
     errs = []
     times = []
     data_norm = l2_norm(data.query_results())
 
-    for seed in range(10):
+    for seed in range(repeats):
         print("iter", seed, "...")
         noise_gen = NoiseGenerator(seed)
         start = time.time()
@@ -33,6 +33,9 @@ def run(algorithm: str, data: DatasetMultipleQuery, epsilon: float, delta: float
             res = pmsja(data, epsilon, delta, beta, noise_gen)
         elif algorithm == 'dp_s4s':
             res = dp_s4s_v(data, args.epsilon, args.delta, args.beta, noise_gen, sample_rate)
+        elif algorithm == 'se_pmsja':
+            num_iterations = int(data.num_users() * sample_rate)
+            res = se_pmsja(data, args.epsilon, args.delta, args.beta, noise_gen, num_iterations, c_bound)
         else:
             assert False, "invalid algo"
 
@@ -58,7 +61,8 @@ if __name__ == '__main__':
     parser.add_argument('-c', '--collaborators', default=1024, type=int, help='Collaborators bound')
     parser.add_argument('-s', '--sample_rate_inverse', default=10, type=float, help='Sample rate inverse')
     parser.add_argument('-a', '--algorithm', required=True, type=str,
-                        choices=['pmsja', 'dp_s4s'], help='Algorithm')
+                        choices=['pmsja', 'dp_s4s', 'se_pmsja'], help='Algorithm')
+    parser.add_argument('-r', '--repeats', default=10, type=int, help='Number of repeats')
 
     args = parser.parse_args()
 
@@ -69,6 +73,6 @@ if __name__ == '__main__':
     print("Query Norm: ", l2_norm(dataset.query_results()))
 
     err, time = run(args.algorithm, dataset, args.epsilon, args.delta, args.beta, args.global_sensitivity,
-                    1./args.sample_rate_inverse, args.collaborators)
+                    1./args.sample_rate_inverse, args.collaborators, args.repeats)
     print("time", time)
     print("err", err)

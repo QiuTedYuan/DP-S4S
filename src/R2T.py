@@ -171,16 +171,9 @@ def se_whitebox(dataset: Dataset, gs: float, epsilon: float, delta: float, noise
 def se_blackbox(dataset: Dataset, gs: float, epsilon: float, delta: float, beta: float, noise_gen: NoiseGenerator, k, c_bound):
     node_count = dataset.num_vertices
 
-    if node_count - k * c_bound < k:
-        prob_no_collaborator = 0
-    else:
-        prob_no_collaborator = binom(node_count - k * c_bound, k) / binom(node_count, k)
-
-    print("prob", 1-prob_no_collaborator)
     assert delta == 0, "approx DP currently unsupported"
 
-    amplified_eps = math.log(1 + (math.exp(epsilon) - 1) / (1 - prob_no_collaborator))
-    amplified_delta = delta
+    amplified_eps, amplified_delta = PrivacyBudgetAllocator.allocate_user_amplification(k, epsilon, delta, node_count, c_bound)
 
     sampled_instance = Dataset.sample_explore(dataset, noise_gen, k)
 

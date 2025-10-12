@@ -123,3 +123,17 @@ class DatasetMultipleQuery:
                     sampled_values.append(ds.query_values[query][idx])
             sampled_dataset.add_query_records(sampled_records, sampled_values)
         return sampled_dataset
+
+    @classmethod
+    def sample_explore(cls, ds, noise_gen: NoiseGenerator, k: int):
+        sampled_users = set(noise_gen.choice(ds.num_users(), k,False))
+        sampled_dataset = cls()
+        for query in range(len(ds.query_records)):
+            sampled_records = []
+            sampled_values = []
+            for idx in range(len(ds.query_records[query])):
+                if ds.query_values[query][idx][0] in sampled_users:
+                    sampled_records.append(ds.query_records[query][idx])
+                    sampled_values.append(ds.query_values[query][idx])
+            sampled_dataset.add_query_records(sampled_records, sampled_values)
+        return sampled_dataset
