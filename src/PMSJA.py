@@ -1,5 +1,6 @@
 import logging
 import math
+import os
 
 from scipy.special.cython_special import binom
 
@@ -17,6 +18,7 @@ from Smooth import find_alpha_rho, AdditiveSmoothSensitivity
 base = 2
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.DEBUG)
+MOSEK_PATH = os.path.abspath(os.path.dirname(__file__)) + "/../mosek.lic"
 
 class Optimizer(cplex.callbacks.SimplexCallback):
     lower_bound = None
@@ -93,7 +95,7 @@ class QCQPSolver:
         self.log_level = log_level
 
         self.env = mosek.Env()
-        self.env.putlicensepath("../mosek.lic")
+        self.env.putlicensepath(MOSEK_PATH)
 
     def get_idx_for_z(self, query, record):
         return self.num_yi + self.dataset.get_record_idx(query, record)

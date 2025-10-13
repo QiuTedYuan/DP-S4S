@@ -6,10 +6,11 @@ authors = ["Annonymous"]
 readme = "Readme.md"
 
 [tool.poetry.dependencies]
-python = "^3.10"
+python = ">=3.10,<3.13"
 numpy = "^1.26.0"
 scipy = "^1.11.0"
 scikit-learn = "^1.3.0"
+mosek = "^10.2.14"
 
 [tool.poetry.group.dev.dependencies]
 

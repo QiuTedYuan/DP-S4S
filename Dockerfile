@@ -1,6 +1,6 @@
 # This container is intended to run with resource limits such as:
 #   docker run --cpus=1 --memory=32g <image> ...
-FROM python:3.10-slim
+FROM python:3.10-bullseye
 
 ENV POETRY_VERSION=1.7.1 \
     POETRY_NO_INTERACTION=1 \
@@ -18,6 +18,7 @@ WORKDIR /app
 
 COPY . .
 
+RUN poetry lock --no-update
 RUN poetry install --no-root --only main
 
 RUN poetry run python cplex/python/setup.py install

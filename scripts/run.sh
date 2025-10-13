@@ -235,7 +235,8 @@ while [[ "${offset}" -lt "${task_count}" ]]; do
                 --memory-swappiness=0 \
                 -w /app \
                 "${IMAGE_NAME}" \
-                bash -c "${cmd[@]}")
+                bash -c "${cmd[*]}")
+
     echo "${docker_cmd[@]}"
     "${docker_cmd[@]}" > "logs/${container_name}.txt" 2>&1 &
 

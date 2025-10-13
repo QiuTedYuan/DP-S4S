@@ -106,7 +106,7 @@ class DatasetMultipleQuery:
                 for user in self.query_records[query][record]:
                     query_contrib[user] = query_contrib.get(user, 0) + self.query_values[query][record]
             for user in query_contrib:
-                contribs[user] = contribs.get(user, 0) + np.pow(query_contrib[user], 2)
+                contribs[user] = contribs.get(user, 0) + np.power(query_contrib[user], 2)
         if not len(contribs):
             return 0
         return np.sqrt(max(contribs.values()))
