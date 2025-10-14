@@ -1,4 +1,4 @@
-import glob
+import pathlib as pl
 from functools import cache
 
 import numpy as np
@@ -55,9 +55,10 @@ class DatasetMultipleQuery:
         self.cumulative_record_counts.append(self.cumulative_record_counts[-1] + len(edges))
 
     @classmethod
-    def from_prefix(cls, prefix):
+    def from_folder(cls, prefix):
         dataset = cls()
-        files = glob.glob(prefix + "*")
+        path = pl.Path(prefix)
+        files = [f for f in path.rglob("*") if f.is_file()]
         for file in files:
             values = []
             edges = []

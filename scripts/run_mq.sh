@@ -15,15 +15,15 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 
 
-DATASETS=(deezer amazon2)
-QUERIES=(l1 l2 triangle rectangle)
-SAMPLE_RATES=(4 8 16 32 64)
-SAMPLE_RATE_ALGOS=(dp_s4s se_blackbox)
-NO_SAMPLE_RATE_DEFAULT=(r2t)
-ENABLE_R2T="${ENABLE_R2T:-1}"
+DATASETS=(sf4)
+QUERIES=(q5 q7_one_nation)
+SAMPLE_RATES=(64 32 16 8 4)
+SAMPLE_RATE_ALGOS=(dp_s4s se_pmsja)
+NO_SAMPLE_RATE_DEFAULT=(pmsja)
+ENABLE_PMSJA="${ENABLE_PMSJA:-1}"
 
 declare -a NO_SAMPLE_RATE_ALGOS=()
-if [[ "${ENABLE_R2T}" -ne 0 ]]; then
+if [[ "${ENABLE_PMSJA}" -ne 0 ]]; then
   NO_SAMPLE_RATE_ALGOS=("${NO_SAMPLE_RATE_DEFAULT[@]}")
 else
   NO_SAMPLE_RATE_ALGOS=()
@@ -35,10 +35,10 @@ declare -a BASE_LABELS=()
 
 for dataset in "${DATASETS[@]}"; do
   for query in "${QUERIES[@]}"; do
-    rel_path="info/${dataset}/${query}.txt"
+    rel_path="info/${dataset}/${query}"
     host_path="${PROJECT_ROOT}/${rel_path}"
-    if [[ ! -f "${host_path}" ]]; then
-      echo "Warning: skipping missing input file ${host_path}" >&2
+    if [[ ! -d "${host_path}" ]]; then
+      echo "Warning: skipping missing input folder ${host_path}" >&2
       continue
     fi
     BASE_HOST_PATHS+=("${host_path}")
@@ -48,7 +48,7 @@ for dataset in "${DATASETS[@]}"; do
 done
 
 if [[ "${#BASE_HOST_PATHS[@]}" -eq 0 ]]; then
-  echo "No input files found. Populate ${PROJECT_ROOT}/info/<dataset>/<query>.txt before running." >&2
+  echo "No input files found. Populate ${PROJECT_ROOT}/info/<dataset>/<query> before running." >&2
   exit 1
 fi
 
@@ -87,8 +87,8 @@ else
   fi
 fi
 
-CONTAINER_CPU=1
-CONTAINER_MEMORY_GB=32
+CONTAINER_CPU=4
+CONTAINER_MEMORY_GB=256
 CONTAINER_MEMORY_BYTES=$((CONTAINER_MEMORY_GB * 1024 * 1024 * 1024))
 if [[ "${AVAILABLE_MEMORY_BYTES}" -lt "${CONTAINER_MEMORY_BYTES}" ]]; then
   echo "Only $((AVAILABLE_MEMORY_BYTES / (1024 * 1024))) MiB memory available; at least ${CONTAINER_MEMORY_GB} GiB is required to launch one container." >&2
@@ -156,8 +156,8 @@ SAMPLE_RATE_TASKS=$(( BASE_COMBINATIONS * ${#SAMPLE_RATE_ALGOS[@]} * ${#SAMPLE_R
 NO_SAMPLE_RATE_TASKS=$(( BASE_COMBINATIONS * ${#NO_SAMPLE_RATE_ALGOS[@]} ))
 TOTAL_CONTAINERS="${#TASK_ALGOS[@]}"
 
-if [[ "${ENABLE_R2T}" -eq 0 ]]; then
-  echo "ENABLE_R2T=0 -> skipping algorithms without sample rate (${NO_SAMPLE_RATE_DEFAULT[*]})."
+if [[ "${ENABLE_PMSJA}" -eq 0 ]]; then
+  echo "ENABLE_PMSJA=0 -> skipping algorithms without sample rate (${NO_SAMPLE_RATE_DEFAULT[*]})."
 fi
 
 echo "Planning to launch ${TOTAL_CONTAINERS} containers (${NO_SAMPLE_RATE_TASKS} without sample rate + ${SAMPLE_RATE_TASKS} with sample rates)."
@@ -201,7 +201,8 @@ while [[ "${offset}" -lt "${task_count}" ]]; do
     base_label="${TASK_BASE_LABELS[idx]}"
     sample_rate="${TASK_SAMPLE_RATES[idx]}"
     algo="${TASK_ALGOS[idx]}"
-    cpu="${CPU_INDICES[i]}"
+    cpu_idx=$(( i * CONTAINER_CPU ))
+    cpu="${CPU_INDICES[cpu_idx]}"
 
     if [[ -n "${sample_rate}" ]]; then
       label="${base_label}-s${sample_rate}"
@@ -214,12 +215,12 @@ while [[ "${offset}" -lt "${task_count}" ]]; do
     CONTAINER_NAMES+=("${container_name}")
 
     if [[ -n "${sample_rate}" ]]; then
-      echo "Starting '${algo}' with input ${base_label} (sample_rate=${sample_rate}) on CPU ${cpu}..."
+      echo "Starting '${algo}' with input ${base_label} (sample_rate=${sample_rate}) on CPU ${cpu}-$((cpu+CONTAINER_CPU-1))..."
     else
-      echo "Starting '${algo}' with input ${base_label} (default sample rate) on CPU ${cpu}..."
+      echo "Starting '${algo}' with input ${base_label} (default sample rate) on CPU $((cpu+CONTAINER_CPU-1))..."
     fi
 
-    cmd=(poetry run python src/main.py -i "${container_path}" -a "${algo}")
+    cmd=(poetry run python src/main_mq.py -i "${container_path}" -a "${algo}")
     if [[ -n "${sample_rate}" ]]; then
       cmd+=(-s "${sample_rate}")
     fi
@@ -228,7 +229,7 @@ while [[ "${offset}" -lt "${task_count}" ]]; do
     docker_cmd=(docker run --rm \
                 --name "${container_name}" \
                 --cpus="${CONTAINER_CPU}" \
-                --cpuset-cpus="${cpu}" \
+                --cpuset-cpus="${cpu}-$((cpu+CONTAINER_CPU-1))" \
                 --memory="${CONTAINER_MEMORY_GB}"g \
                 --memory-swap="${CONTAINER_MEMORY_GB}"g \
                 --memory-swappiness=0 \

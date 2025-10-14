@@ -53,7 +53,7 @@ def run(algorithm: str, data: DatasetMultipleQuery, epsilon: float, delta: float
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='DP-S4S.')
-    parser.add_argument('-i', '--input', required=True, type=str, help='Input file')
+    parser.add_argument('-i', '--input', required=True, type=str, help='Input folder, will glob all text files under the folder')
     parser.add_argument('-e', '--epsilon', default=4.0, type=float, help='Epsilon')
     parser.add_argument('-d', '--delta', default=0.0000001, type=float, help='Delta')
     parser.add_argument('-b', '--beta', default=0.1, type=float, help='Beta')
@@ -66,7 +66,7 @@ if __name__ == '__main__':
 
     args = parser.parse_args()
 
-    dataset = DatasetMultipleQuery.from_prefix(args.input)
+    dataset = DatasetMultipleQuery.from_folder(args.input)
     print("Num Queries: ", dataset.num_queries())
     print("Data Sizes: ", [len(x) for x in dataset.query_records][0:3])
     print("Query Result: ", dataset.query_results()[0:3])

@@ -11,7 +11,7 @@ def solve_gamma(alpha, rho, d):
         return x ** alpha - alpha * A * x + (alpha - 1) * A
 
     t1 = brentq(f, (alpha-1) / alpha, 1)
-    t2 = brentq(f,1, np.pow(alpha * A, 1. / (alpha-1)))
+    t2 = brentq(f,1, np.power(alpha * A, 1. / (alpha-1)))
     return 0.5 * np.log(min(1. / t1, t2))
 
 def approx_err(alpha, rho, d):

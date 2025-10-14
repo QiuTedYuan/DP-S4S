@@ -82,7 +82,7 @@ class PrivacyBudgetAllocator:
         if node_count - k * c_bound < k:
             prob_no_collaborator = 0
         else:
-            prob_no_collaborator = binom(node_count - k * c_bound, k) / binom(node_count, k)
+            prob_no_collaborator = math.comb(node_count - k * c_bound, k) / math.comb(node_count, k)
 
         if delta == 0:
             amplified_eps = math.log(1 + (math.exp(epsilon) - 1) / (1 - prob_no_collaborator))
