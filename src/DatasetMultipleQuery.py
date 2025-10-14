@@ -133,7 +133,7 @@ class DatasetMultipleQuery:
             sampled_records = []
             sampled_values = []
             for idx in range(len(ds.query_records[query])):
-                if ds.query_values[query][idx][0] in sampled_users:
+                if ds.query_records[query][idx][0] in sampled_users:
                     sampled_records.append(ds.query_records[query][idx])
                     sampled_values.append(ds.query_values[query][idx])
             sampled_dataset.add_query_records(sampled_records, sampled_values)

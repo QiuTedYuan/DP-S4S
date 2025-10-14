@@ -324,7 +324,8 @@ def se_pmsja(dataset: DatasetMultipleQuery, epsilon: float, delta: float, beta: 
 
     amplified_eps, amplified_delta = PrivacyBudgetAllocator.allocate_user_amplification(k, epsilon, delta, node_count, c_bound)
 
-    sampled_dataset = DatasetMultipleQuery.sample_from(dataset, noise_gen, amplified_eps)
-    res = pmsja(sampled_dataset, amplified_eps, amplified_delta, beta / k, noise_gen)
+    sampled_dataset = DatasetMultipleQuery.sample_explore(dataset, noise_gen, k)
+
+    res = pmsja(sampled_dataset, amplified_eps, amplified_delta, beta, noise_gen)
 
     return res / k * node_count
