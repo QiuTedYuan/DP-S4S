@@ -126,7 +126,7 @@ class QCQPSolver:
                     asub = []
                     aval = []
                     # sum yi
-                    for user in record_users:
+                    for user in set(record_users):
                         asub.append(user)
                         aval.append(1.0)
                     # -zkj
