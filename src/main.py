@@ -5,7 +5,7 @@ import numpy as np
 
 from Dataset import Dataset
 from NoiseGen import NoiseGenerator
-from R2T import r2t, dp_s4s, se_whitebox, se_blackbox
+from S4SS import r2t, dp_s4s, se_whitebox, se_blackbox
 
 
 def avg(arr):
@@ -61,7 +61,7 @@ if __name__ == '__main__':
     parser.add_argument('-c', '--collaborators', default=1024, type=int, help='Collaborators bound')
     parser.add_argument('-w', '--max_weight', default=1., type=float, help='Max weight of each record')
     parser.add_argument('-s', '--sample_rate_inverse', default=10, type=float, help='Sample rate inverse')
-    parser.add_argument('-a', '--algorithm', required=True, type=str, choices=['r2t', 'dp_s4s', 'se_blackbox', 'se_whitebox'], help='Algorithm')
+    parser.add_argument('-a', '--algorithm', required=True, type=str, choices=['r2t', 'dp_s4s', 'se_blackbox'], help='Algorithm')
     parser.add_argument('-r', '--repeats', default=10, type=int, help='Number of repeats')
 
     args = parser.parse_args()

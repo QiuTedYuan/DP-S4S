@@ -2,10 +2,6 @@ import logging
 import math
 import os
 
-from scipy.special.cython_special import binom
-
-import R2T
-
 import cplex
 import mosek
 import numpy as np
@@ -26,6 +22,7 @@ class Optimizer(cplex.callbacks.SimplexCallback):
     def __call__(self):
         if self.get_objective_value() < self.lower_bound:
             self.abort()
+
 
 # records solutions stats for a range of tau values
 class LpSolver:
@@ -86,8 +83,9 @@ class LpSolver:
         if cpx.solution.get_status() == cpx.solution.status.optimal:
             self.is_optimal[idx] = True
 
+
 class QCQPSolver:
-    def __init__(self, dataset: DatasetMultipleQuery, log_level = logging.INFO):
+    def __init__(self, dataset: DatasetMultipleQuery, log_level=logging.INFO):
         self.dataset = dataset
 
         self.num_yi = self.dataset.num_users()
@@ -99,7 +97,6 @@ class QCQPSolver:
 
     def get_idx_for_z(self, query, record):
         return self.num_yi + self.dataset.get_record_idx(query, record)
-
 
     def solve(self, tau):
         num_variables = self.num_yi + self.num_zkj
@@ -149,7 +146,8 @@ class QCQPSolver:
                             user_cones[user] = {}
                         if not query in user_cones[user]:
                             user_cones[user][query] = {}
-                        user_cones[user][query][self.get_idx_for_z(query, record)] = self.dataset.query_values[query][record]
+                        user_cones[user][query][self.get_idx_for_z(query, record)] = self.dataset.query_values[query][
+                            record]
 
             # Construct F matrix in sparse form
             Fsubi = []
@@ -174,15 +172,15 @@ class QCQPSolver:
                 task.putafeg(prefix, tau)
 
                 # Define a conic quadratic domain
-                quadDom = task.appendquadraticconedomain(cone_size_prefix[uid+1] - prefix)
+                quadDom = task.appendquadraticconedomain(cone_size_prefix[uid + 1] - prefix)
 
                 # Create the ACC
                 task.appendacc(quadDom,  # Domain index
-                               range(prefix, cone_size_prefix[uid+1]),  # Indices of AFE rows [0,...,k]
+                               range(prefix, cone_size_prefix[uid + 1]),  # Indices of AFE rows [0,...,k]
                                None)  # Ignored
 
             if self.log_level == logging.DEBUG:
-                task.writedata('task_'+str(tau)+'.ptf')
+                task.writedata('task_' + str(tau) + '.ptf')
             task.optimize()
 
             # Extract the solutions
@@ -236,27 +234,20 @@ def pmsja(dataset: DatasetMultipleQuery, epsilon: float, delta: float, beta: flo
         truncated_query = np.zeros(dataset.num_queries())
         for query in range(dataset.num_queries()):
             for record in range(dataset.num_records_of_query(query)):
-                truncated_query[query] += I_sol[tau][solver.get_idx_for_z(query, record)] * dataset.query_values[query][record]
+                truncated_query[query] += I_sol[tau][solver.get_idx_for_z(query, record)] * dataset.query_values[query][
+                    record]
 
-    temp = delta / 2 / math.exp(0.55*eps_2)
-    T_hat = 2*(dataset.num_users()-E_star) \
-            + noise_gen.generate_laplace(2, 0.45*eps_2) \
-            + 2/(0.45*eps_2)*math.log(math.exp(epsilon*0.55)/delta)
-    Gauss_noise = T_hat*tau*math.sqrt(2*math.log(1/temp)) * (1+0.45*eps_2/(4*math.log(1/temp))) / (0.45*eps_2) * np.random.normal(0, 1, dataset.num_queries())
+    temp = delta / 2 / math.exp(0.55 * eps_2)
+    T_hat = 2 * (dataset.num_users() - E_star) \
+            + noise_gen.generate_laplace(2, 0.45 * eps_2) \
+            + 2 / (0.45 * eps_2) * math.log(math.exp(epsilon * 0.55) / delta)
+    Gauss_noise = T_hat * tau * math.sqrt(2 * math.log(1 / temp)) * (1 + 0.45 * eps_2 / (4 * math.log(1 / temp))) / (
+                0.45 * eps_2) * np.random.normal(0, 1, dataset.num_queries())
 
     return truncated_query + Gauss_noise
 
-
-def r2t_mq(dataset: DatasetMultipleQuery, gs: float, epsilon: float, delta: float, beta: float, noise_gen: NoiseGenerator):
-    res = np.zeros(dataset.num_queries())
-    eps = PrivacyBudgetAllocator.allocate_advanced_composition(dataset.num_queries(), epsilon, delta)
-    for query in range(dataset.num_queries()):
-        ds_q = Dataset(dataset.query_records[query], dataset.query_values[query])
-        #res[query] = R2T.r2t(ds_q, gs, eps, beta / dataset.num_queries(), noise_gen)
-        res[query] = R2T.dp_s4s(ds_q, gs, eps, beta / dataset.num_queries(), noise_gen, max_weight=1, sample_rate=0.5)
-    return res
-
-def dp_s4s_v(original_dataset: DatasetMultipleQuery, epsilon: float, delta: float, beta: float, noise_gen: NoiseGenerator, sample_rate):
+def dp_s4s_v(original_dataset: DatasetMultipleQuery, epsilon: float, delta: float, beta: float,
+             noise_gen: NoiseGenerator, sample_rate):
     eps_1 = epsilon / 10
     eps_2 = epsilon * 9 / 10
     alpha, rho = find_alpha_rho(eps_2, delta, original_dataset.num_queries())
@@ -267,13 +258,13 @@ def dp_s4s_v(original_dataset: DatasetMultipleQuery, epsilon: float, delta: floa
         dataset = original_dataset
 
     solver = QCQPSolver(dataset)
-    thres = 2 / eps_1 * math.log(1./beta)
+    thres = 2 / eps_1 * math.log(1. / beta)
     thres_tilde = thres + noise_gen.generate_laplace(2, eps_1)
 
     DS = dataset.l2_downward_sensitivity()
 
     num_nontrivial_taus = int(math.log(DS, base))
-    #for tau >= DS, the optimal solution is trivial
+    # for tau >= DS, the optimal solution is trivial
     taus = np.power(base, list(range(num_nontrivial_taus)))
     Es = np.zeros(len(taus))
     I_sols = [[] for _ in taus]
@@ -309,7 +300,8 @@ def dp_s4s_v(original_dataset: DatasetMultipleQuery, epsilon: float, delta: floa
         truncated_query = np.zeros(dataset.num_queries())
         for query in range(dataset.num_queries()):
             for record in range(dataset.num_records_of_query(query)):
-                truncated_query[query] += I_sols[idx][solver.get_idx_for_z(query, record)] * dataset.query_values[query][record]
+                truncated_query[query] += I_sols[idx][solver.get_idx_for_z(query, record)] * \
+                                          dataset.query_values[query][record]
 
     logging.debug("tau", tau, "Truncated: ", truncated_query)
 
@@ -319,10 +311,13 @@ def dp_s4s_v(original_dataset: DatasetMultipleQuery, epsilon: float, delta: floa
 
     return (truncated_query + noise) / sample_rate
 
-def se_pmsja(dataset: DatasetMultipleQuery, epsilon: float, delta: float, beta: float, noise_gen: NoiseGenerator, k, c_bound):
+
+def se_pmsja(dataset: DatasetMultipleQuery, epsilon: float, delta: float, beta: float, noise_gen: NoiseGenerator, k,
+             c_bound):
     node_count = dataset.user_cnt
 
-    amplified_eps, amplified_delta = PrivacyBudgetAllocator.allocate_user_amplification(k, epsilon, delta, node_count, c_bound)
+    amplified_eps, amplified_delta = PrivacyBudgetAllocator.allocate_user_amplification(k, epsilon, delta, node_count,
+                                                                                        c_bound)
 
     sampled_dataset = DatasetMultipleQuery.sample_explore(dataset, noise_gen, k)
 

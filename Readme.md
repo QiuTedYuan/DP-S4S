@@ -1,6 +1,6 @@
 # DP-S4S
 
-This repo contains the code for "Sampling for Scale: Scalable Select-Join-Aggregate Query Processing under User-Level Differential Privacy".
+This repo contains the code for "DP-S4S: Accurate and Scalable Select-Join-Aggregate Query Processing with User-Level Differential Privacy".
 
 ## Installation
 
@@ -14,11 +14,11 @@ For Mosek, a valid [license](https://www.mosek.com/products/academic-licenses/) 
 
 ## Data
 
-We use the same dataset as existing work [R2T](https://github.com/hkustDB/Race-to-the-Top), [PMSJA](https://github.com/hkustDB/PMSJA/tree/master), so the raw data can be similarly obtained.
+We use the same datasets as existing work [R2T](https://github.com/hkustDB/Race-to-the-Top), [PMSJA](https://github.com/hkustDB/PMSJA/tree/master), so the raw data can be similarly obtained.
 
-We have preprocessed the raw data into join results under `info`. To reproduce them:
-1. Run `./scripts/load_graph.py` or `load_tpch.py` to load the raw data into PostgreSQL
-2. Run `./scripts/query_graph.py` or `query_tpch.py` to query PostgreSQL and write results into `info`.
+We have preprocessed the raw data into join results under `info`. To reproduce this step:
+1. Run `./scripts/load_graph.py` / `load_tpch.py` / `load_labeled_graph.py` to load the raw data into PostgreSQL
+2. Run `./scripts/query_graph.py` / `query_tpch.py` / `query_labeled_graph.py` to query PostgreSQL and write results into `info`.
 
 ## Run experiments
 
@@ -28,8 +28,8 @@ For scalar query:
 ```zsh
 usage: main.py [-h] -i INPUT [-e EPSILON] [-d DELTA] [-b BETA]
                [-g GLOBAL_SENSITIVITY] [-c COLLABORATORS] [-w MAX_WEIGHT]
-               [-s SAMPLE_RATE_INVERSE] -a
-               {r2t,dp_s4s,se_blackbox,se_whitebox} [-r REPEATS]
+               [-s SAMPLE_RATE_INVERSE] -a {r2t,dp_s4s,se_blackbox}
+               [-r REPEATS]
 
 DP-S4S.
 
@@ -59,9 +59,8 @@ options:
 For vector query:
 ```zsh
 usage: main_mq.py [-h] -i INPUT [-e EPSILON] [-d DELTA] [-b BETA]
-                  [-g GLOBAL_SENSITIVITY] [-c COLLABORATORS]
-                  [-s SAMPLE_RATE_INVERSE] -a {pmsja,dp_s4s,se_pmsja}
-                  [-r REPEATS]
+                  [-c COLLABORATORS] [-s SAMPLE_RATE_INVERSE] -a
+                  {pmsja,dp_s4s,se_pmsja} [-r REPEATS]
 
 DP-S4S.
 
@@ -75,8 +74,6 @@ options:
   -d DELTA, --delta DELTA
                         Delta
   -b BETA, --beta BETA  Beta
-  -g GLOBAL_SENSITIVITY, --global_sensitivity GLOBAL_SENSITIVITY
-                        Global sensitivity
   -c COLLABORATORS, --collaborators COLLABORATORS
                         Collaborators bound
   -s SAMPLE_RATE_INVERSE, --sample_rate_inverse SAMPLE_RATE_INVERSE

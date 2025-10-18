@@ -5,7 +5,7 @@ import numpy as np
 
 from DatasetMultipleQuery import DatasetMultipleQuery
 from NoiseGen import NoiseGenerator
-from PMSJA import pmsja, dp_s4s_v, se_pmsja
+from S4SV import pmsja, dp_s4s_v, se_pmsja
 
 
 def avg(arr):
@@ -17,7 +17,7 @@ def l2_norm(x):
     return np.sqrt(np.sum(np.power(x, 2)))
 
 def run(algorithm: str, data: DatasetMultipleQuery, epsilon: float, delta: float, beta: float,
-        global_sensitivity: float, sample_rate: float, c_bound: int, repeats: int):
+        sample_rate: float, c_bound: int, repeats: int):
 
     errs = []
     times = []
@@ -57,7 +57,6 @@ if __name__ == '__main__':
     parser.add_argument('-e', '--epsilon', default=4.0, type=float, help='Epsilon')
     parser.add_argument('-d', '--delta', default=0.0000001, type=float, help='Delta')
     parser.add_argument('-b', '--beta', default=0.1, type=float, help='Beta')
-    parser.add_argument('-g', '--global_sensitivity', default=1000000, type=float, help='Global sensitivity')
     parser.add_argument('-c', '--collaborators', default=1024, type=int, help='Collaborators bound')
     parser.add_argument('-s', '--sample_rate_inverse', default=10, type=float, help='Sample rate inverse')
     parser.add_argument('-a', '--algorithm', required=True, type=str,
@@ -72,7 +71,7 @@ if __name__ == '__main__':
     print("Query Result: ", dataset.query_results()[0:3])
     print("Query Norm: ", l2_norm(dataset.query_results()))
 
-    err, time = run(args.algorithm, dataset, args.epsilon, args.delta, args.beta, args.global_sensitivity,
+    err, time = run(args.algorithm, dataset, args.epsilon, args.delta, args.beta,
                     1./args.sample_rate_inverse, args.collaborators, args.repeats)
     print("time", time)
     print("err", err)

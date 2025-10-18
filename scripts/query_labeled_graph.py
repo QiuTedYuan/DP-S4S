@@ -29,9 +29,7 @@ def execute(query, dbname, group_by_cnt):
 
     start = time.time()
     cursor.execute(query)
-    t = time.time() - start
-    with open('../info/time.txt', "a", encoding="utf-8") as f:
-        f.write(dbname + "\t" +     args.query + "\t" + str(t) + '\n')
+
     if not os.path.exists(outdir + '/' + args.query):
         os.makedirs(outdir + '/' + args.query, exist_ok=True)
     # Maintain file handles for each group
@@ -53,6 +51,11 @@ def execute(query, dbname, group_by_cnt):
         f.close()
 
     print(f"Processed {count} rows into {len(writers)} group files.")
+
+    t = time.time() - start
+
+    with open('../info/time.txt', "a", encoding="utf-8") as f:
+        f.write(dbname + "\t" +     args.query + "\t" + str(t) + '\n')
     return len(writers)
 
 parser = argparse.ArgumentParser(description='query tpch')

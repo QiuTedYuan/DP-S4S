@@ -3,7 +3,6 @@ import math
 
 import cplex
 import numpy as np
-from scipy.special.cython_special import binom
 
 from Dataset import Dataset
 from NoiseGen import NoiseGenerator, PrivacyBudgetAllocator
