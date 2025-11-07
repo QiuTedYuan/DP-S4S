@@ -20,23 +20,6 @@ def approx_err(alpha, rho, d):
 
 def find_alpha_rho(eps, delta, d):
     L = np.log(1. / delta)
-    err_star = np.inf
-    alpha_star = 0
-    rho_star = 0
-    for rho in np.arange(0.00001, eps, 0.00001):
-        alpha = 1 + L / (eps - rho)
-        gamma = solve_gamma(alpha,rho,d)
-        err = np.sqrt(alpha / rho) / (1 - alpha + alpha * np.exp(-2 * gamma))
-        if err < err_star:
-            alpha_star = alpha
-            rho_star = rho
-            err_star = err
-        else:
-            break
-    return alpha_star, rho_star
-
-def find_alpha_rho_new(eps, delta, d):
-    L = np.log(1. / delta)
 
     err_left = np.inf
     alpha_left = 1 + L / eps + 0.0001
