@@ -2,6 +2,10 @@ from functools import cache
 
 import numpy as np
 from scipy.optimize import brentq
+from scipy.special import logsumexp
+
+from src.NoiseGen import NoiseGenerator
+
 
 @cache
 def solve_gamma(alpha, rho, d):
@@ -17,6 +21,25 @@ def solve_gamma(alpha, rho, d):
 def approx_err(alpha, rho, d):
     gamma = solve_gamma(alpha, rho, d)
     return 1 / gamma * np.exp(gamma - 1) * np.sqrt(alpha / rho) / (1 - alpha + alpha * np.exp(-2 * gamma))
+
+def find_alpha_rho_old(eps, delta, d):
+    L = np.log(1. / delta)
+
+    err_star = np.inf
+    alpha_star = 0
+    rho_star = 0
+    for rho in np.arange(0.00001, eps, 0.00001):
+        alpha = 1 + L / (eps - rho)
+        gamma = solve_gamma(alpha, rho, d)
+        err = np.sqrt(alpha / rho) / (1 - alpha + alpha * np.exp(-2 * gamma))
+        if err < err_star:
+            alpha_star = alpha
+            rho_star = rho
+            err_star = err
+        else:
+            break
+    return alpha_star, rho_star
+
 
 def find_alpha_rho(eps, delta, d):
     L = np.log(1. / delta)
@@ -62,12 +85,14 @@ class AdditiveSmoothSensitivity:
 
     def compute_g(self, s):
         opt_k = 1. / self.gamma - s
+        if opt_k <= 0:
+            return s
         k = np.floor(opt_k)
         res1 = (k + s) * np.exp(- self.gamma * k)
         k = k + 1
         res2 = (k + s) * np.exp(- self.gamma * k)
         return max(res1, res2)
 
-    def sample_noise(self, s):
+    def sample_noise(self, s, noise_gen: NoiseGenerator):
         g = self.compute_g(s)
-        return np.random.normal(0, 1, size = self.d) * g * np.sqrt(self.alpha / self.rho) * self.factor * self.scale
+        return noise_gen.normal(0, 1, size = self.d) * g * np.sqrt(self.alpha / self.rho) * self.factor * self.scale

@@ -52,6 +52,9 @@ class NoiseGenerator:
     def choice(self, a, size, replace, p=None):
         return self.random_state.choice(a, size, replace, p)
 
+    def normal(self, loc, scale, size):
+        return self.random_state.normal(loc, scale, size)
+
 def binary_search(left, right, func, target, accuracy = 10 ** -5):
     while right - left > accuracy:
         mid = (left + right) / 2

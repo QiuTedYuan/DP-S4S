@@ -124,7 +124,10 @@ def dp_s4s(dataset: Dataset, gs: float, epsilon: float, beta: float, noise_gen: 
             if lp_solver.upper_bounds[idx] + noise >= lp_solver.noisy_max:
                 lp_solver.noisy_max = lp_solver.upper_bounds[idx] + noise
 
-    return lp_solver.noisy_max / sample_rate * max_weight
+    if lp_solver.noisy_max < 0:
+        lp_solver.noisy_max = 0
+
+    return sample_dataset.result / sample_rate * max_weight, lp_solver.noisy_max / sample_rate * max_weight
 
 
 def se_whitebox(dataset: Dataset, gs: float, epsilon: float, delta: float, noise_gen: NoiseGenerator, k, c_bound):
@@ -176,7 +179,7 @@ def se_blackbox(dataset: Dataset, gs: float, epsilon: float, delta: float, beta:
 
     sampled_instance = Dataset.sample_explore(dataset, noise_gen, k)
 
-    return r2t(sampled_instance, gs, amplified_eps, beta, noise_gen, amplified_delta)/ k * node_count
+    return sampled_instance.result / k * node_count,  r2t(sampled_instance, gs, amplified_eps, beta, noise_gen, amplified_delta)/ k * node_count
 
 
 

@@ -303,11 +303,9 @@ def dp_s4s_v(original_dataset: DatasetMultipleQuery, epsilon: float, delta: floa
                 truncated_query[query] += I_sols[idx][solver.get_idx_for_z(query, record)] * \
                                           dataset.query_values[query][record]
 
-    logging.debug("tau", tau, "Truncated: ", truncated_query)
-
     ss = AdditiveSmoothSensitivity(2 * tau, alpha, rho, dataset.num_queries())
 
-    noise = ss.sample_noise(E)
+    noise = ss.sample_noise(E, noise_gen)
 
     return (truncated_query + noise) / sample_rate
 
